@@ -1,0 +1,10 @@
+INPUT: Original.inm
+MODNAME: apmain
+RUNID: Original
+NEW_RUNID: Original
+OLD_RUNID: Original
+PDF: Original.appdf
+USERNAME: RCGI-0313
+XMOD: C:\Program Files (x86)\AspenTech\Aspen Plus V10.0\Engine\xeq\apmain
+SPONLY:
+DBCONN: _4808ubw.ads
