@@ -36,7 +36,7 @@ lb  =  [1.5; 0.15];
 ub  =  [2.5; 0.25];
 
 % Use the latin hypercube to sampling
-design = make_design(lb,ub,2,'lhsd')
+design = make_design(lb,ub,400,'lhsd')
 %%
 % Data collection for a RadFrac
 % Insert the name of a related block in Aspen Plus, feed stream and output
@@ -195,12 +195,40 @@ Aspen.Quit;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Save the data collected in a dataset                                    %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Try to find the error, because it'll happen
+szg(1) = size(Duty_reb,2);
+szg(2) = size(Duty_cond,2);
+szg(3) = size(Pent,2);
+szg(4) = size(MoleFlow,2);
+szg(5) = size(CBM_Tower,2);
 
-dataset = design(:,1:size(Pent,2));
+[Mins,Indx] = min(szg);
+
+% Save 1 Dataset
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Save the data collected in a dataset                                    %
+% The format is:
+%                 Obs1  Obs2  Obs3  Obs4   Obs_n(n = number of observations)
+%   Variable1
+%   Variable2
+%   Variable3
+%   Variable4
+%   Variable5
+%   Variable_m
+%   (m = number of variables)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+minimo=Mins;
+
+dataset = design(:,1:minimo);
 dataset(3,:) = Pent;
 dataset(4,:) = Duty_reb;
 dataset(5,:) = Duty_cond;
 dataset(6,:) = MoleFlow;
+dataset(7,:) = CBM_Tower;
+dataset(8,:) = CBM0_Tower;
+dataset(9,:) = water_usage;
+dataset(10,:) = lp_usage;
+
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Clean the dataset                                                       %
@@ -208,7 +236,7 @@ dataset(6,:) = MoleFlow;
 % problem it was flaged as zero for all the results. In this case, these  %
 % flaged rows will be removed.                                            %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-dataset(:,(dataset(4,:)==0)) = [];
+dataset(:,(dataset(3,:)==0)) = [];
 
 % For the neural networks each column represents a feature and each row a
 % sample, therefore, the variable is transposed
@@ -222,9 +250,10 @@ end
 
 if numel(dir(NewFolder)) <=2
     fprintf('Empty Folder. \n')
-    counter=1
+    counter=1;
 else
     fprintf('NOT Empty Folder. \n')
+    counter=length(dir([NewFolder, '\*.csv']))+1;
 end
 
 if isfile([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.mat'])
@@ -238,15 +267,7 @@ else
      csvwrite([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.csv'],dataset);
 end
 
-%%
-input_test=dataset(1:2,:);
-output_test=dataset(3:6,:);
-csvwrite('input_test.csv', input_test);
-csvwrite('output_test.csv', output_test);
-%% merge datasets
 
-merged_dataset=[dataset_AA;dataset_AB]
-csvwrite('FileName.csv', merged_dataset);
 %% Plotting
 figure()
 
