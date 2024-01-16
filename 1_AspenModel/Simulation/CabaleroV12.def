@@ -1,0 +1,10 @@
+INPUT: CabaleroV12.inm
+MODNAME: apmain
+RUNID: CabaleroV12
+NEW_RUNID: CabaleroV12
+OLD_RUNID: CabaleroV12
+PDF: CabaleroV12.appdf
+USERNAME: RCGI-001
+XMOD: C:\Program Files\AspenTech\Aspen Plus V12.0\Engine\xeq\apmain
+SPONLY:
+DBCONN: _1934hmv.ads
