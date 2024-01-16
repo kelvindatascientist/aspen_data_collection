@@ -1,20 +1,23 @@
-%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% BLOCK RAFRAC CL-01                                                      %
-% This section initialize the application for the collection of data      %
-% The files that must be in the folder:                                   %
-% - Simulation of Aspen (Simulation_Name)                                 %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Example of code for data collection
+%
+% Kelvin Pacheco
+%
+% Phd Student - University of Sao Paulo - Department of Chemical
+% Engineering
+%
+% Date: 11/05/20
+%% DATA RETRIEVE
+% The files that must be in the folder:
+% Simulation of Aspen (Simulation_Name)
 clc
 clear all
 
 % The first step is initialize the application, controlling Aspen Plus using ActiveX in MATLAB
 % Link original do https://www.mathworks.com/matlabcentral/fileexchange/69464-aspen-plus-matlab-link?focused=1eefd5fe-a0ce-4f86-8f7e-debdcabd5760&tab=function
 
-Aspen = actxserver('Apwn.Document.36.0');     % Initialize suit (34.0 -> V8.8; 35.0 -> V9.0; 36.0 -> V10.0)
+Aspen = actxserver('Apwn.Document.38.0');     % Initialize suit (34.0 -> V8.8; 35.0 -> V9.0; 36.0 -> V10.0)
 [stat,mess]=fileattrib;                       % get attributes of folder (Necessary to establish the location of the simulation)
-%Simulation_Name = 'Cabalero';    % Aspeen Plus Simulation Name
-Simulation_Name = 'liquid_sep';    % Aspeen Plus Simulation Name
+Simulation_Name = 'CabaleroV12';              % Aspeen Plus Simulation Name
 Aspen.invoke('InitFromArchive2',[mess.Name '\1_AspenModel\Simulation\' Simulation_Name '.bkp']);
 Aspen.Visible = 1;                            % 1 -> Aspen is Visible; 0 -> Aspen is open but not visible
 Aspen.SuppressDialogs = 1;                    % Suppress windows dialogs.
@@ -26,61 +29,14 @@ while Aspen.Engine.IsRunning == 1             % 1 -> If Aspen is running; 0 -> I
     pause(0.5);
 end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% RADFRAC CL-01                                                           %
-% This section is regarding the Column CL-01 in the liquid separation     %
-% section.                                                                %
-% Variables for design:                                                   %
-% - Molar Flow                                                            %
-% - Pressure                                                              %
-% - Temperature                                                           %
-% - RR
-% - D/F
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-Block_Name='CL-01';
-filename = [mess.Name '\1_AspenModel\Bounds\Bounds.xlsx'];
-sheetread = Block_Name;
-Matrix_range = 'B2:C14';
-BoundMatrix = xlsread(filename,sheetread, Matrix_range);
-lb = BoundMatrix(:,1);
-ub = BoundMatrix(:,2);
-[~,NameMatrix] = xlsread(filename,sheetread, 'A2:A11')
-% Use the latin hypercube to sampling
-design = make_design(lb,ub,50,'lhsd')
-
-% Data collection for a Heater
-% Insert the name of a related block in Aspen Plus, feed stream and output
-% streams
-Feed_Stream='501';
-Out_Stream ='502A';
-                                            
-% Run a 'for' loop taking into account the DoE previously performed. In the
-% case of a variable is needed this site
-% (https://chejunkie.com/knowledge-base/navigating-variable-explorer-aspen-plus/)
-% provides the guidelines
-
-%%
-% aqui começa outro!
-%Application in real problems
+%% Application in real problems
 
 % Define the upper and lower bound of the sampling
-
-%bound=[RR;  D/F;   P_col; T; Z_a;   Z_b;  c;   d;   e;   f;  g;    h;    i
-%lb  =  [1.5; 0.15; 1;     35; 1e-5; 5e-3; 400; 100; 400; 7;  3e-3; 2e-3; 3e-4; 6; 40];
-%ub  =  [2.5;    0.25;   1;     15; 2e-5; 6e-3; 500; 150; 500; 12; 6e-3; 4e-3; 5e-4; 8; 7];
-
-% Use the latin hypercube to sampling
-%lb  =  [1.5; 0.15; 11; 0.4];
-%ub  =  [2.5; 0.25; 32; 0.8];
-
 lb  =  [1.5; 0.15];
 ub  =  [2.5; 0.25];
 
+% Use the latin hypercube to sampling
 design = make_design(lb,ub,2,'lhsd')
-%%
-design=[1.5400,2.4910;
-        0.2485,0.1644]
 %%
 % Data collection for a RadFrac
 % Insert the name of a related block in Aspen Plus, feed stream and output
@@ -245,3 +201,73 @@ dataset(3,:) = Pent;
 dataset(4,:) = Duty_reb;
 dataset(5,:) = Duty_cond;
 dataset(6,:) = MoleFlow;
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Clean the dataset                                                       %
+% During the retrieve of simulation, when there was a non convergence     %
+% problem it was flaged as zero for all the results. In this case, these  %
+% flaged rows will be removed.                                            %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+dataset(:,(dataset(4,:)==0)) = [];
+
+% For the neural networks each column represents a feature and each row a
+% sample, therefore, the variable is transposed
+dataset=dataset'
+%%
+% Save the files related into the Folder
+NewFolder=[mess.Name '\2_Datasets\' Block_Name ];
+if ~exist(NewFolder, 'dir')
+    mkdir(NewFolder)
+end
+
+if numel(dir(NewFolder)) <=2
+    fprintf('Empty Folder. \n')
+    counter=1
+else
+    fprintf('NOT Empty Folder. \n')
+end
+
+if isfile([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.mat'])
+     fprintf('File already exists. \n')% File exists.
+     counter=counter+1;
+     save([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.mat'],'dataset');
+     csvwrite([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.csv'],dataset);
+else
+     fprintf('File does not exist yet. \n')
+     save([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.mat'],'dataset');
+     csvwrite([NewFolder,'\','dataset',num2str(counter),'_',Block_Name,'.csv'],dataset);
+end
+
+%%
+input_test=dataset(1:2,:);
+output_test=dataset(3:6,:);
+csvwrite('input_test.csv', input_test);
+csvwrite('output_test.csv', output_test);
+%% merge datasets
+
+merged_dataset=[dataset_AA;dataset_AB]
+csvwrite('FileName.csv', merged_dataset);
+%% Plotting
+figure()
+
+figure(1)
+plot(design(1,:), Duty_reb, 'ok');
+%plot(design(1,1:size(Pent,2)), Pent, 'ok');
+xlabel('Reflux Ratio')
+ylabel('Duty')
+
+%%
+%%%%  Auxiliary functions ###################################################
+function [design] = make_design(lb,ub,nex,tipo)
+% This function obtain the sample for input of the surrogate modelling
+% inputs: lb, ub, nex and tipo
+
+switch tipo
+    case 'rand'
+        norm = rand(nex, length(lb));
+        design = norm'.*(ub-lb)+lb;
+    case 'lhsd'
+        norm = lhsdesign(nex, length(lb),'iteration',50); %https://www.mathworks.com/help/stats/lhsdesign.html
+        design = norm'.*(ub-lb)+lb;
+end
+end
